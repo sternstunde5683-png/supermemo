@@ -441,14 +441,14 @@ function ask(q) {
       gistId = found.id;
       say(C.g('  ✓ 复用已有云同步空间：' + gistId));
     } else {
+      // ⚠️ 必须一次带上数据文件：GitHub 不允许创建「空的」Gist（files: {} 会返回 422）
+      const files = {};
+      files[GIST_FILE] = { content: JSON.stringify({ schema: 1, updatedAt: Date.now(), words: [], notes: [], deleted: {} }) };
       const g = await api('POST', '/gists', {
         description: '超级记忆 · 生词本云同步数据',
         public: false,
-        files: {}
+        files: files
       });
-      const files = {};
-      files[GIST_FILE] = { content: JSON.stringify({ schema: 1, updatedAt: Date.now(), words: [], notes: [], deleted: {} }) };
-      await api('PATCH', '/gists/' + g.id, { files: files });
       gistId = g.id;
       say(C.g('  ✓ 已创建私有云同步空间：' + gistId));
     }
