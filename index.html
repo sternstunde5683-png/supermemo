@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#f7f5f0">
+<title>超级记忆 · 自定义生词背诵</title>
+<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- 本地词典服务未连接时的全局引导横幅（服务掉线时首页就能看到解决方法） -->
+  <div class="svc-banner" id="svcBanner" hidden></div>
+
+  <!-- ===================== 顶部栏 ===================== -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-logo">超</span>
+        <div class="brand-text">
+          <strong>超级记忆</strong>
+          <small id="headerSub">自建词库 · 高效记背</small>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="btnQrCode" title="手机扫码打开">📱</button>
+        <button class="icon-btn" id="btnQuickAdd" title="新增单词">＋</button>
+      </div>
+    </div>
+    <!-- 顶部统计条 -->
+    <div class="stat-strip" id="statStrip">
+      <div class="stat-item"><b id="statNew">0</b><span>生词</span></div>
+      <div class="stat-item"><b id="statMaster">0</b><span>熟词</span></div>
+      <div class="stat-item"><b id="statToday">0</b><span>今日</span></div>
+      <div class="stat-item"><b id="statNote">0</b><span>笔记</span></div>
+    </div>
+  </header>
+
+  <!-- ===================== 内容区 ===================== -->
+  <main class="app-main">
+
+    <!-- ---------- 页面一：生词记忆页 ---------- -->
+    <section class="page page-active" id="page-learn">
+      <!-- 工具条：搜索 + 筛选 -->
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="search" id="learnSearch" placeholder="搜索单词 / 释义">
+          <button class="clear-btn" id="learnSearchClear" hidden>×</button>
+        </div>
+        <div class="chips" id="learnPosFilter"><!-- JS 渲染词性筛选 --></div>
+        <div class="row-between">
+          <div class="seg-group" id="learnMode">
+            <button class="seg active" data-mode="card">卡片背诵</button>
+            <button class="seg" data-mode="list">列表速览</button>
+          </div>
+          <div class="seg-group" id="learnOrder">
+            <button class="seg active" data-order="seq">顺序</button>
+            <button class="seg" data-order="random">随机</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 卡片背诵模式 -->
+      <div class="study-area" id="studyArea">
+        <div class="progress-line">
+          <div class="progress-bar"><i id="studyProgress"></i></div>
+          <span class="progress-text" id="studyProgressText">0 / 0</span>
+        </div>
+
+        <div class="word-card" id="wordCard">
+          <div class="wc-head">
+            <div class="wc-word-wrap">
+              <h2 class="wc-word" id="wcWord" title="点击朗读">—</h2>
+              <button class="speak-btn" id="wcSpeak" title="朗读">🔊</button>
+            </div>
+            <div class="wc-phonetic" id="wcPhonetic"></div>
+            <div class="wc-meta">
+              <span class="tag" id="wcSource">—</span>
+              <span class="tag" id="wcTime">—</span>
+              <span class="tag" id="wcNoteTag" hidden>—</span>
+            </div>
+          </div>
+
+          <!-- 释义区（遮罩目标） -->
+          <div class="wc-body" id="wcBody">
+            <div class="mask-layer" id="maskLayer">
+              <button class="mask-btn" id="maskBtn">🙈 点击显示释义</button>
+            </div>
+            <div class="meaning-list" id="wcMeanings"><!-- JS 渲染 --></div>
+            <div class="phrase-block" id="wcPhraseBlock" hidden>
+              <h4>常考搭配 / 短语</h4>
+              <ul id="wcPhrases"></ul>
+            </div>
+            <div class="example-block" id="wcExampleBlock" hidden>
+              <h4>例句</h4>
+              <ul id="wcExamples"></ul>
+            </div>
+          </div>
+
+          <div class="wc-actions">
+            <button class="act-btn ghost" id="btnPrev">上一个</button>
+            <button class="act-btn primary" id="btnToggleMask">遮住释义</button>
+            <button class="act-btn success" id="btnMaster">✓ 已熟记</button>
+            <button class="act-btn ghost" id="btnNext">下一个</button>
+          </div>
+          <div class="wc-mini">
+            <label class="switch"><input type="checkbox" id="chkAutoSpeak"><span></span>自动发音</label>
+            <label class="switch"><input type="checkbox" id="chkAutoMask" checked><span></span>默认遮罩</label>
+            <button class="mini-link" id="btnRepeat3">×3 复读</button>
+            <button class="mini-link" id="btnEditWord">编辑</button>
+            <button class="mini-link danger" id="btnDeleteWord">删除</button>
+          </div>
+        </div>
+
+        <!-- 空状态 -->
+        <div class="empty-state" id="learnEmpty" hidden>
+          <div class="empty-emoji">📖</div>
+          <p>生词本还是空的</p>
+          <small>去「多功能」页导入文本 / 图片，或点右上角 ＋ 手动添加</small>
+          <button class="act-btn primary" id="emptyAdd">立即添加单词</button>
+        </div>
+      </div>
+
+      <!-- 列表速览模式 -->
+      <div class="list-area" id="learnListArea" hidden>
+        <div class="list-head">
+          <span id="learnListCount">0 个单词</span>
+          <button class="mini-link" id="btnMasterChecked">批量熟记选中</button>
+        </div>
+        <div id="learnList" class="word-list"><!-- JS 渲染 --></div>
+      </div>
+    </section>
+
+    <!-- ---------- 页面二：熟词页 ---------- -->
+    <section class="page" id="page-mastered">
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="search" id="masterSearch" placeholder="搜索已掌握单词">
+          <button class="clear-btn" id="masterSearchClear" hidden>×</button>
+        </div>
+        <div class="chips" id="masterPosFilter"><!-- JS 渲染 --></div>
+      </div>
+      <div class="list-head">
+        <span id="masterListCount">0 个熟词</span>
+        <button class="mini-link" id="btnRestoreChecked">放回生词本</button>
+      </div>
+      <div id="masterList" class="word-list"></div>
+      <div class="empty-state" id="masterEmpty" hidden>
+        <div class="empty-emoji">🌱</div>
+        <p>还没有熟记的单词</p>
+        <small>在生词页打钩「已熟记」后会自动归档到这里</small>
+      </div>
+    </section>
+
+    <!-- ---------- 页面三：多功能页 ---------- -->
+    <section class="page" id="page-tools">
+
+      <!-- 环境提示（以本地文件方式打开 / 网络不可用时显示） -->
+      <div class="notice" id="envNotice" hidden></div>
+
+      <!-- 3.0 手机扫码打开 -->
+      <div class="panel qr-panel" id="qrPanel" hidden>
+        <div class="panel-title"><span>📱 手机扫码打开</span><em class="panel-tip">省得手输网址</em></div>
+        <div class="qr-body">
+          <div id="qrCanvas" class="qr-canvas"></div>
+          <div class="qr-info">
+            <p class="qr-url" id="qrUrl">正在获取局域网地址…</p>
+            <button class="act-btn ghost" id="btnCopyUrl">复制链接</button>
+            <small>手机连接同一个 WiFi 后扫上面的二维码即可。<br>建议用手机自带浏览器打开后「添加到主屏幕」，以后点图标就能进。</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- 0. 云同步：多台设备共用同一份生词本 -->
+      <div class="panel" id="syncPanel">
+        <div class="panel-title"><span>☁️ 云同步</span><em class="panel-tip" id="syncTip">未开启</em></div>
+        <div class="sync-box">
+          <p class="sync-desc" id="syncDesc">开启后，手机和电脑背的是同一份生词本：这边加的词、标熟的词，另一边自动跟上。</p>
+
+          <!-- 未连接时：填入令牌或用配对码加入 -->
+          <div id="syncSetup" hidden>
+            <input class="field-input sync-input" id="syncToken" type="password"
+                   placeholder="粘贴 GitHub 令牌（只需勾选 gist 权限）" autocomplete="off" spellcheck="false">
+            <div class="row-between sync-actions">
+              <button class="act-btn primary" id="btnSyncConnect">连接云同步</button>
+              <button class="act-btn ghost" id="btnSyncPair">用配对码加入</button>
+            </div>
+            <label class="set-row"><span>改用局域网同步（不需要账号）</span><input type="checkbox" id="setSyncLocal"></label>
+            <small class="hint">令牌只存在这台设备的浏览器里，不会上传到任何其他地方。<br>
+              还没有令牌？点上面的「连接云同步」会给出获取步骤。</small>
+          </div>
+
+          <!-- 已连接后：同步操作 -->
+          <div id="syncReady" hidden>
+            <div class="row-between sync-actions">
+              <button class="act-btn primary" id="btnSyncNow">立即同步</button>
+              <button class="act-btn ghost" id="btnSyncQr">配对二维码</button>
+              <button class="act-btn ghost" id="btnSyncOff">断开</button>
+            </div>
+            <label class="set-row"><span>自动同步（后台每 5 分钟一次）</span><input type="checkbox" id="setSyncAuto" checked></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3.1 文档 / 文本导入 -->
+      <div class="panel">
+        <div class="panel-title"><span>📄 导入笔记 / 文档</span></div>
+        <div class="drop-zone" id="dropZone">
+          <b>点击选择文件</b>
+          <small>支持 .txt / .md / .csv / .docx，也可直接把文件拖进来</small>
+          <input type="file" id="fileInput" accept=".txt,.md,.markdown,.csv,.docx,.json" hidden multiple>
+        </div>
+        <textarea class="paste-area" id="pasteArea" placeholder="或直接粘贴英文文本 / 笔记内容，点击「提取单词」自动识别生词…"></textarea>
+        <div class="row-between">
+          <button class="act-btn ghost" id="btnExtract">提取单词</button>
+          <button class="act-btn primary" id="btnSaveNote">存为笔记</button>
+        </div>
+        <!-- 候选词选择区 -->
+        <div class="candidate-area" id="candidateArea" hidden>
+          <div class="cand-head">
+            <span id="candCount">0 个候选单词</span>
+            <div>
+              <button class="mini-link" id="btnCandAll">全选</button>
+              <button class="mini-link" id="btnCandNone">清空</button>
+            </div>
+          </div>
+          <div class="cand-list" id="candList"></div>
+          <button class="act-btn primary block" id="btnAddCandidates">加入生词本（自动联网查询释义）</button>
+        </div>
+      </div>
+
+      <!-- 3.2 OCR 图片识别 -->
+      <div class="panel">
+        <div class="panel-title"><span>🖼️ 图片 OCR 扫描选词</span><em class="panel-tip">按需加载识别引擎</em></div>
+        <div class="ocr-zone" id="ocrZone">
+          <!-- 两条入口分开：拍照用 capture 直接调起摄像头，相册则不加 capture -->
+          <input type="file" id="ocrInput" accept="image/*" capture="environment" hidden>
+          <input type="file" id="ocrAlbumInput" accept="image/*" hidden>
+          <div class="ocr-placeholder" id="ocrPlaceholder">
+            <b>拍照或从相册选图，自动识别图中英文</b>
+            <small>识别后<b>默认不选任何词</b>，你在图上拖框圈出要背的单词即可</small>
+            <div class="row-between pick-row">
+              <button class="act-btn primary" id="btnTakePhoto">📷 拍照识别</button>
+              <button class="act-btn ghost" id="btnPickImage">🖼️ 从相册选</button>
+            </div>
+          </div>
+          <div class="ocr-stage" id="ocrStage" hidden>
+            <!-- 缩放 / 框选工具栏：图片可以放大了再选，字小也点得准 -->
+            <div class="ocr-toolbar">
+              <div class="seg-group ocr-mode" id="ocrModeGroup">
+                <button class="seg active" data-mode="select">⬚ 圈选取词</button>
+                <button class="seg" data-mode="pan">✋ 移动缩放</button>
+              </div>
+              <div class="ocr-zoom">
+                <button class="zoom-btn" id="ocrZoomOut" title="缩小">－</button>
+                <span class="zoom-val" id="ocrZoomVal">100%</span>
+                <button class="zoom-btn" id="ocrZoomIn" title="放大">＋</button>
+                <button class="zoom-btn wide" id="ocrZoomFit" title="缩到能看全整张图">⤢ 整页</button>
+              </div>
+            </div>
+            <div class="ocr-viewport" id="ocrViewport" data-mode="select">
+              <div class="ocr-scene" id="ocrScene">
+                <img id="ocrImage" alt="待识别图片">
+                <div class="ocr-boxes" id="ocrBoxes"></div>
+                <div class="ocr-regions" id="ocrRegions"></div>
+                <div class="ocr-marquee" id="ocrMarquee" hidden></div>
+              </div>
+            </div>
+            <div class="ocr-status" id="ocrStatus">正在识别…</div>
+            <p class="ocr-hint" id="ocrHint" hidden>👉 <b>点一下单词</b> = 勾上再点一次 = 取消（不用点准，落在单词附近就行）。<br>
+              <b>全选</b>后想剔除哪些词，直接点那些词即可。<br>
+              漏识别的词：双指<b>放大</b>后单指在单词上<b>拖出方框</b> —— 只识别框里的内容，中文不会混进来。<br>
+              自己圈的框：<b>拖框体</b>挪位置、拖<b>四角</b>改范围、点 <b>×</b> 删掉；识别错了点词条旁的 <b>✎</b> 手改。</p>
+            <div class="ocr-result" id="ocrResult"></div>
+            <div class="row-between ocr-actions">
+              <button class="act-btn ghost" id="btnOcrRetake">↺ 重新拍照</button>
+              <button class="act-btn ghost" id="btnOcrInvert">🔄 反选</button>
+              <button class="act-btn ghost" id="btnOcrSelectAll">全选</button>
+              <button class="act-btn primary" id="btnOcrAdd">加入生词本</button>
+            </div>
+            <!-- 引擎不可用时的降级：对照图片手动录入 -->
+            <div class="ocr-manual" id="ocrManual" hidden>
+              <div class="field-row">
+                <input type="text" id="ocrManualInput" placeholder="识别引擎不可用？手动输入图中单词后回车">
+                <button class="act-btn primary" id="btnOcrManualAdd" style="flex:0 0 66px">添加</button>
+              </div>
+              <div id="ocrManualList" class="ocr-result"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3.3 笔记管理 -->
+      <div class="panel">
+        <div class="panel-title">
+          <span>🗂️ 笔记 / 文本库</span>
+          <button class="mini-link" id="btnNewNote">＋ 新建笔记</button>
+        </div>
+        <div id="noteList" class="note-list"></div>
+      </div>
+
+      <!-- 3.4 词性分类 -->
+      <div class="panel">
+        <div class="panel-title"><span>🏷️ 词性分类</span></div>
+        <div id="categoryStats" class="cat-grid"></div>
+      </div>
+
+      <!-- 3.5 设置与数据 -->
+      <div class="panel">
+        <div class="panel-title"><span>⚙️ 设置与数据</span></div>
+        <div class="set-row" id="dictStateRow">
+          <span>在线词典服务</span>
+          <span class="dict-state" id="dictState">检测中…</span>
+          <button class="mini-link" id="btnRecheckDict">重新检测</button>
+        </div>
+        <label class="set-row"><span>联网自动查询释义</span><input type="checkbox" id="setAutoQuery" checked></label>
+        <label class="set-row"><span>释义自动翻译为中文</span><input type="checkbox" id="setTranslate" checked></label>
+        <label class="set-row"><span>查询动词搭配短语</span><input type="checkbox" id="setPhrase" checked></label>
+        <label class="set-row"><span>切换单词自动朗读</span><input type="checkbox" id="setAutoSpeak"></label>
+        <label class="set-row"><span>新单词默认遮罩释义</span><input type="checkbox" id="setAutoMask" checked></label>
+        <label class="set-row"><span>发音口音</span>
+          <select id="setAccent">
+            <option value="en-US">美音 en-US</option>
+            <option value="en-GB">英音 en-GB</option>
+          </select>
+        </label>
+        <div class="set-row"><span>发音自检</span>
+          <button class="mini-link" id="btnTestSpeak">🔊 试听「example」</button>
+        </div>
+        <p class="foot-tip" id="speakTip" hidden></p>
+        <div class="row-between data-btns">
+          <button class="act-btn ghost" id="btnExport">导出备份</button>
+          <button class="act-btn ghost" id="btnImport">导入备份</button>
+          <button class="act-btn ghost" id="btnClearCache">清理缓存</button>
+          <button class="act-btn danger" id="btnReset">清空数据</button>
+          <button class="act-btn primary" id="btnDiagnose">网络诊断</button>
+        </div>
+        <p class="foot-tip">数据保存在本机浏览器（localStorage），不上传任何服务器。在线词典缓存：<b id="cacheCount">0</b> 条；内置离线词库：<b id="localCount">0</b> 条。</p>
+        <p class="foot-tip" id="serverTip" hidden>未检测到本地词典服务：直接双击 index.html 打开时，浏览器会拦截跨域查询，在线词典不可用。请双击项目里的 <b>启动网站.bat</b>（或运行 <b>node server.js</b>），再用 http://localhost:8124 打开，在线词典即可正常查询。</p>
+      </div>
+
+      <div class="page-foot">超级记忆 v1.0 · 自建词库，越背越薄 📚</div>
+    </section>
+
+  </main>
+
+  <!-- ===================== 底部 Tab ===================== -->
+  <nav class="tabbar">
+    <button class="tab tab-active" data-page="page-learn"><i>📘</i><span>生词记忆</span></button>
+    <button class="tab" data-page="page-mastered"><i>✅</i><span>熟词库</span></button>
+    <button class="tab" data-page="page-tools"><i>🧰</i><span>多功能</span></button>
+  </nav>
+
+  <!-- ===================== 弹层 ===================== -->
+  <div class="modal-root" id="modalRoot" hidden>
+    <div class="modal-mask" id="modalMask"></div>
+    <div class="modal-box" id="modalBox"></div>
+  </div>
+
+  <!-- 全局轻提示 -->
+  <div class="toast" id="toast" hidden></div>
+</div>
+
+<!-- ===================== 脚本（按依赖顺序加载，均为普通脚本，file:// 亦可运行） ===================== -->
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/sync.js"></script>
+<script src="assets/js/localdict.js"></script><!-- 本地离线词库（2195 条，无网兜底） -->
+<script src="assets/js/dictionary.js"></script>
+<script src="assets/js/speech.js"></script>
+<script src="assets/js/importer.js"></script>
+<script src="assets/js/ocr.js"></script>
+<script src="assets/vendor/qrcode.js"></script>
+<script src="assets/js/view-learn.js"></script>
+<script src="assets/js/view-mastered.js"></script>
+<script src="assets/js/view-tools.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
